@@ -2,28 +2,32 @@
 
 import hydra
 import torch
-import cv2
-import easyocr
 
 from ultralytics.yolo.engine.predictor import BasePredictor
 from ultralytics.yolo.utils import DEFAULT_CONFIG, ROOT, ops
 from ultralytics.yolo.utils.checks import check_imgsz
 from ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
+import easyocr
 
-reader=easyocr.Reader(['en'],gpu=True)
-
+import cv2
+reader = easyocr.Reader(['en'], gpu=True)
 def ocr_image(img,coordinates):
-  x, y, w, h = int(coordinates[0]), int(coordinates[1]), int(coordinates[2]), int(coordinates[3])
-  img=img[y:h, x:w]
-  gray=cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
-  result=reader.readtext(gray)
-  text=""
-  for res in result:
-    if len(result)==1:
-      text=res[1]
-    if len(result)>1 and len(res[1])>6 and res[2]>0.2:
-      text=res[1]
-  return text
+    x,y,w, h = int(coordinates[0]), int(coordinates[1]), int(coordinates[2]),int(coordinates[3])
+    img = img[y:h,x:w]
+
+    gray = cv2.cvtColor(img , cv2.COLOR_RGB2GRAY)
+    #gray = cv2.resize(gray, None, fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC)
+    result = reader.readtext(gray)
+    text = ""
+
+    for res in result:
+        if len(result) == 1:
+            text = res[1]
+        if len(result) >1 and len(res[1])>6 and res[2]> 0.2:
+            text = res[1]
+    #     text += res[1] + " "
+    
+    return str(text)
 
 class DetectionPredictor(BasePredictor):
 
@@ -83,12 +87,13 @@ class DetectionPredictor(BasePredictor):
                 line = (cls, *xywh, conf) if self.args.save_conf else (cls, *xywh)  # label format
                 with open(f'{self.txt_path}.txt', 'a') as f:
                     f.write(('%g ' * len(line)).rstrip() % line + '\n')
+
             if self.args.save or self.args.save_crop or self.args.show:  # Add bbox to image
                 c = int(cls)  # integer class
                 label = None if self.args.hide_labels else (
                     self.model.names[c] if self.args.hide_conf else f'{self.model.names[c]} {conf:.2f}')
-                text_ocr = ocr_image(im0, xyxy)
-                label = text_ocr
+                text_ocr = ocr_image(im0,xyxy)
+                label = text_ocr              
                 self.annotator.box_label(xyxy, label, color=colors(c, True))
             if self.args.save_crop:
                 imc = im0.copy()
