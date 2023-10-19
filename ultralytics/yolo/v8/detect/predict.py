@@ -11,6 +11,7 @@ import easyocr
 
 import cv2
 reader = easyocr.Reader(['en'], gpu=True)
+output_text_file = open("detected_text.txt", "w")
 def ocr_image(img,coordinates):
     x,y,w, h = int(coordinates[0]), int(coordinates[1]), int(coordinates[2]),int(coordinates[3])
     img = img[y:h,x:w]
@@ -80,6 +81,14 @@ class DetectionPredictor(BasePredictor):
             n = (det[:, 5] == c).sum()  # detections per class
             log_string += f"{n} {self.model.names[int(c)]}{'s' * (n > 1)}, "
         # write
+        text_file_path = str(Path(self.txt_path).with_suffix('.txt'))
+        with open(text_file_path, 'a') as text_file:
+            for *xyxy, conf, cls in reversed(det):
+                xywh = ops.xyxy2xywh(torch.tensor(xyxy).view(1, 4)).view(-1).tolist()
+                line = (cls, *xywh, conf) if self.args.save_conf else (cls, *xywh)
+                text_ocr = ocr_image(im0, xyxy)
+                line = line + (text_ocr,)  # Add detected text to line
+                text_file.write(('{} ' * len(line)).format(*line) + '\n')
         gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
         for *xyxy, conf, cls in reversed(det):
             if self.args.save_txt:  # Write to file
