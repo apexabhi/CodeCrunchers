@@ -8,10 +8,20 @@ from ultralytics.yolo.utils import DEFAULT_CONFIG, ROOT, ops
 from ultralytics.yolo.utils.checks import check_imgsz
 from ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
 import easyocr
-
+import os
 import cv2
+import csv
+import tempfile
 reader = easyocr.Reader(['en'], gpu=True)
-def ocr_image(img,coordinates):
+folder_path = '/content/CodeCrunchers/Automatic_Number_Plate_Detection_Recognition_YOLOv8'
+os.makedirs(folder_path, exist_ok=True)
+csv_filename = 'recognized_numbers.csv'
+def write_to_csv(recognized_text):
+    with open(os.path.join(folder_path, csv_filename), 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow([recognized_text])
+
+def ocr_image(img,coordinates,csv_filename):
     x,y,w, h = int(coordinates[0]), int(coordinates[1]), int(coordinates[2]),int(coordinates[3])
     img = img[y:h,x:w]
 
@@ -26,6 +36,9 @@ def ocr_image(img,coordinates):
         if len(result) >1 and len(res[1])>6 and res[2]> 0.2:
             text = res[1]
     #     text += res[1] + " "
+
+        if text:
+            write_to_csv(text)
     
     return str(text)
 
@@ -92,7 +105,7 @@ class DetectionPredictor(BasePredictor):
                 c = int(cls)  # integer class
                 label = None if self.args.hide_labels else (
                     self.model.names[c] if self.args.hide_conf else f'{self.model.names[c]} {conf:.2f}')
-                text_ocr = ocr_image(im0,xyxy)
+                text_ocr = ocr_image(im0,xyxy,self.txt_path)
                 label = text_ocr              
                 self.annotator.box_label(xyxy, label, color=colors(c, True))
             if self.args.save_crop:
@@ -115,4 +128,8 @@ def predict(cfg):
 
 
 if __name__ == "__main__":
+    
+    csv_filename = 'recognized_numbers.csv'  
+    if os.path.exists(csv_filename):
+        os.remove(csv_filename) 
     predict()
